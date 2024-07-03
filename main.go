@@ -122,6 +122,7 @@ func parseFilters(csvFilters string) [][]Filter {
 
 func parseUserTags(userTags string) map[string]string {
 	// Remove the curly braces
+	userTags = strings.TrimSpace(userTags)
 	userTags = strings.Trim(userTags, "{}")
 
 	// Split the section into key-value pairs
@@ -151,6 +152,9 @@ func checkConditionGroup(group []Filter, userTags map[string]string) bool {
 
 // Check the validity of the relation and whether this script supports it
 func checkCondition(filter Filter, userTags map[string]string) bool {
+	if filter.Field != "tag" {
+		filter.Key = filter.Field
+	}
 	switch filter.Relation {
 	case "exists":
 		_, exists := userTags[filter.Key]
