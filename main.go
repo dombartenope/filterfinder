@@ -8,6 +8,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	req "github.com/dombartenope/filterfinder/req"
 )
 
 type Filter struct {
@@ -22,8 +24,23 @@ type Operator struct {
 }
 
 func main() {
+	userStruct := req.ViewUser()
+
+	tagData, err := json.Marshal(userStruct.Properties.Tags)
+	if err != nil {
+		log.Fatalf("Error marshalling the JSON tag data: %v", err)
+	}
+
+	languageData, err := json.Marshal(userStruct.Properties.Language)
+	if err != nil {
+		log.Fatalf("Error marshalling the JSON tag data: %v", err)
+	}
+
 	//Input User Tags here
-	userTags := ``
+	userTags := string(tagData)
+	userLanguage := string(languageData)
+	fmt.Printf("\nAttempting to find match given this input: %s\n", userTags)
+	fmt.Printf("Attempting to find match given this input: %s\n\n", userLanguage)
 	count := 0
 
 	//Read the input of the csv here and create an output file to put matches in
@@ -61,10 +78,11 @@ func main() {
 			csvFilters := v[colAndIndex["filters"]]
 			filterGroups := parseFilters(csvFilters)
 			userTagsMap := parseUserTags(userTags)
+			userLang := parseUserLanguage(userLanguage)
 			// Check if any group of conditions is met
 			match := false
 			for i, group := range filterGroups {
-				groupMatch := checkConditionGroup(group, userTagsMap)
+				groupMatch := checkConditionGroup(group, userTagsMap, userLang)
 				if groupMatch {
 					fmt.Printf("Group %d: %v\n", i+1, groupMatch)
 					match = true
@@ -120,10 +138,20 @@ func parseFilters(csvFilters string) [][]Filter {
 	return filterGroups
 }
 
+func parseUserLanguage(userLanguage string) string {
+
+	userLanguage = strings.TrimSpace(userLanguage)
+	userLanguage = strings.Trim(userLanguage, "{}")
+	userLanguage = strings.ReplaceAll(userLanguage, "\"", "")
+
+	return userLanguage
+}
+
 func parseUserTags(userTags string) map[string]string {
 	// Remove the curly braces
 	userTags = strings.TrimSpace(userTags)
 	userTags = strings.Trim(userTags, "{}")
+	userTags = strings.ReplaceAll(userTags, "\"", "")
 
 	// Split the section into key-value pairs
 	pairs := strings.Split(userTags, ",")
@@ -141,9 +169,9 @@ func parseUserTags(userTags string) map[string]string {
 	return userTagsMap
 }
 
-func checkConditionGroup(group []Filter, userTags map[string]string) bool {
+func checkConditionGroup(group []Filter, userTags map[string]string, userLanguage string) bool {
 	for _, filter := range group {
-		if !checkCondition(filter, userTags) {
+		if !checkCondition(filter, userTags, userLanguage) {
 			return false
 		}
 	}
@@ -151,10 +179,12 @@ func checkConditionGroup(group []Filter, userTags map[string]string) bool {
 }
 
 // Check the validity of the relation and whether this script supports it
-func checkCondition(filter Filter, userTags map[string]string) bool {
-	if filter.Field != "tag" {
-		filter.Key = filter.Field
+func checkCondition(filter Filter, userTags map[string]string, userLanguage string) bool {
+
+	if filter.Field == "language" {
+		return compareValues(userLanguage, filter.Value, filter.Relation)
 	}
+
 	switch filter.Relation {
 	case "exists":
 		_, exists := userTags[filter.Key]
