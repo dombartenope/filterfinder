@@ -82,20 +82,57 @@ func TestParseUserTags(t *testing.T) {
 	}
 }
 
-func TestCheckConditionGroup(t *testing.T) {
+func TestParseUserLanguage(t *testing.T) {
 	testCases := []struct {
 		name     string
-		group    []Filter
-		userTags map[string]string
-		expected bool
+		input    string
+		expected map[string]string
 	}{
 		{
-			name: "Single condition met",
+			name:     "Simple language matching",
+			input:    "{language: en}",
+			expected: map[string]string{"language": "en"},
+		},
+		{
+			name:     "Empty input",
+			input:    "{}",
+			expected: map[string]string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := parseUserTags(tc.input)
+			if !reflect.DeepEqual(result, tc.expected) {
+				t.Errorf("Expected %v, but got %v", tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestCheckConditionGroup(t *testing.T) {
+	testCases := []struct {
+		name         string
+		group        []Filter
+		userTags     map[string]string
+		userLanguage string
+		expected     bool
+	}{
+		{
+			name: "Tag condition met",
 			group: []Filter{
 				{Key: "age", Field: "age", Value: "30", Relation: "="},
 			},
 			userTags: map[string]string{"age": "30"},
 			expected: true,
+		},
+		{
+			name: "Language condition met",
+			group: []Filter{
+				{Field: "language", Value: "en", Relation: "="},
+			},
+			userLanguage: "en",
+			expected:     true,
 		},
 		{
 			name: "Multiple conditions met",
@@ -109,17 +146,18 @@ func TestCheckConditionGroup(t *testing.T) {
 		{
 			name: "One condition not met",
 			group: []Filter{
-				{Key: "age", Field: "age", Value: "30", Relation: "="},
+				{Field: "language", Value: "en", Relation: "="},
 				{Key: "name", Field: "name", Value: "John", Relation: "="},
 			},
-			userTags: map[string]string{"age": "30", "name": "Jane"},
-			expected: false,
+			userTags:     map[string]string{"age": "30", "name": "John"},
+			userLanguage: "es",
+			expected:     false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := checkConditionGroup(tc.group, tc.userTags)
+			result := checkConditionGroup(tc.group, tc.userTags, tc.userLanguage)
 			if result != tc.expected {
 				t.Errorf("Expected %v, but got %v", tc.expected, result)
 			}
@@ -129,10 +167,11 @@ func TestCheckConditionGroup(t *testing.T) {
 
 func TestRelation(t *testing.T) {
 	testCases := []struct {
-		name     string
-		group    []Filter
-		userTags map[string]string
-		expected bool
+		name         string
+		group        []Filter
+		userTags     map[string]string
+		userLanguage string
+		expected     bool
 	}{
 		{
 			name: "Equals condition met",
@@ -185,6 +224,7 @@ func TestRelation(t *testing.T) {
 		{
 			name: "Complex comparison",
 			group: []Filter{
+				{Value: "es", Field: "language", Relation: "!="},
 				{Key: "gt", Value: "9", Field: "tag", Relation: ">"},
 				{Key: "lt", Value: "9", Field: "tag", Relation: "<"},
 				{Key: "exist", Field: "tag", Relation: "exists"},
@@ -192,14 +232,15 @@ func TestRelation(t *testing.T) {
 				{Key: "atbat", Field: "tag", Value: "true", Relation: "="},
 				{Key: "notatbat", Field: "tag", Value: "true", Relation: "!="},
 			},
-			userTags: map[string]string{"gt": "30", "exist": "1", "lt": "8", "atbat": "true", "notatbat": "false"},
-			expected: true,
+			userTags:     map[string]string{"gt": "30", "exist": "1", "lt": "8", "atbat": "true", "notatbat": "false"},
+			userLanguage: "en",
+			expected:     true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := checkConditionGroup(tc.group, tc.userTags)
+			result := checkConditionGroup(tc.group, tc.userTags, tc.userLanguage)
 			if result != tc.expected {
 				t.Errorf("Expected %v, but got %v", tc.expected, result)
 			}
