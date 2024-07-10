@@ -9,4 +9,5 @@ Script to allow the cross referencing of a user tag list string to each row of a
 `out.csv` should be generated for rows containing matches and the conditions that the user tags met, will be output to the terminal
 
 ### Considerations
-Since this was built out of necessity, it is not equipped to handle complex filter relations (>/< unix timestamps) This will be added in the future
+- Since this was built out of necessity, it is not equipped to handle complex filter relations (>/< unix timestamps) This will be added in the future
+- If the filters look for language, you'll need to add the language as a data tag for the time being. This will be resolved when user exports are used instead of passing in a string
